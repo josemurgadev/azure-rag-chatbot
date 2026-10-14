@@ -1,8 +1,8 @@
 {
-    "name": "bot-authentication",
+    "name": "azure-rag-chatbot",
     "version": "1.0.0",
-    "description": "Bot Builder v4 Bot Authentication sample",
-    "author": "Microsoft",
+    "description": "Chatbot RAG con Azure Bot Service, Azure AI Search y Azure OpenAI, con inicio de sesión OAuth",
+    "author": "José Murga",
     "license": "MIT",
     "main": "index.js",
     "scripts": {
@@ -14,9 +14,10 @@
     },
     "repository": {
         "type": "git",
-        "url": "https://github.com/Microsoft/BotBuilder-Samples.git"
+        "url": "https://github.com/Jmurga16/azure-rag-chatbot.git"
     },
     "dependencies": {
+        "axios": "^1.7.2",
         "botbuilder": "~4.22.1",
         "botbuilder-dialogs": "~4.22.1",
         "dotenv": "^8.2.0",

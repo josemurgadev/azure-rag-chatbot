@@ -1,82 +1,91 @@
-# Bot Authentication with AI Search
+# Azure RAG Chatbot
 
-Bot Framework v4 bot authentication sample
+Chatbot corporativo que responde preguntas **en base a los documentos de la empresa**, con inicio de sesión obligatorio y referencias a los archivos de donde sale cada respuesta.
 
-This bot has been created using [Bot Framework](https://dev.botframework.com), it shows how to use authentication in your bot using OAuth.
+Usa el patrón **RAG** (Retrieval-Augmented Generation): en cada pregunta, Azure OpenAI consulta un índice de **Azure AI Search** con los documentos cargados y responde solo con esa información, citando las fuentes.
 
-The sample uses the bot authentication capabilities in [Azure Bot Service](https://docs.botframework.com), providing features to make it easier to develop a bot that authenticates users to various identity providers such as Azure AD (Azure Active Directory), GitHub, Uber, etc.
+## Qué hace
 
-NOTE: Microsoft Teams currently differs slightly in the way auth is integrated with the bot. Refer to sample 6 [here](https://github.com/OfficeDev/Microsoft-Teams-Samples#bots-samples-using-the-v4-sdk).
+- **Inicio de sesión con OAuth** (Azure Bot Service): el usuario se autentica antes de poder preguntar, y escribe `salir` para cerrar sesión.
+- **Respuestas basadas en documentos propios**: el modelo responde solo con el contenido indexado (`in_scope`), en español.
+- **Referencias**: cada respuesta lista los documentos citados (`[doc1] : archivo.pdf`).
+- **Memoria de conversación**: mantiene las últimas 5 preguntas como contexto.
+- **Web chat incluido**: la ruta `/` sirve una página con Bot Framework Web Chat conectada por Direct Line.
 
-## Prerequisites
+## Arquitectura
 
-- [Node.js](https://nodejs.org) version 16.16.0 or higher
-- Node Recomendable : Version 18.18.2
+```mermaid
+flowchart LR
+    U["Usuario<br/>Web Chat"] --> BS["Azure Bot Service<br/>OAuth"]
+    BS --> BOT["Bot Node.js<br/>Bot Framework v4 + Restify"]
+    BOT -->|"pregunta + historial"| AOAI["Azure OpenAI<br/>Chat Completions"]
+    AOAI -->|"búsqueda semántica"| AIS[("Azure AI Search<br/>índice de documentos")]
+    AIS --> AOAI
+    AOAI -->|"respuesta + citas"| BOT
+```
 
-    ```bash
-    # determine node version
-    node --version
-    ```
+## Stack
 
-## To try this sample
+- **Node.js** · Bot Framework SDK v4 (`botbuilder`, `botbuilder-dialogs`) · Restify · Axios
+- **Azure Bot Service** (canal Web Chat / Direct Line, conexión OAuth)
+- **Azure OpenAI** (GPT-4o) con *On Your Data*
+- **Azure AI Search** (búsqueda semántica sobre los documentos)
+- **Azure App Service** para el despliegue (plantillas ARM en `deploymentTemplates/`)
 
-- Clone the repository
+## Estructura
 
-    ```bash
-    git clone https://github.com/Microsoft/botbuilder-samples.git
-    ```
+```
+├── index.js               # Servidor Restify, adaptador del bot y página de Web Chat
+├── bots/
+│   ├── dialogBot.js       # Manejo de mensajes y guardado de estado
+│   └── authBot.js         # Bienvenida y eventos de token OAuth
+├── dialogs/
+│   ├── mainDialog.js      # Login OAuth + consulta RAG a Azure OpenAI / AI Search
+│   └── logoutDialog.js    # Cierre de sesión con "salir"
+└── deploymentTemplates/   # Plantillas ARM para Azure
+```
 
-- In a console, navigate to `samples/javascript_nodejs/18.bot-authentication`
+## Configuración
 
-    ```bash
-    cd samples/javascript_nodejs/18.bot-authentication
-    ```
+Variables de entorno (archivo `.env` en la raíz):
 
-- Install modules
+| Variable | Para qué sirve |
+|---|---|
+| `MicrosoftAppType`, `MicrosoftAppId`, `MicrosoftAppPassword`, `MicrosoftAppTenantId` | Identidad del bot en Azure |
+| `connectionName` | Nombre de la conexión OAuth configurada en Azure Bot Service |
+| `DIRECT_LINE_TOKEN` | Token del canal Direct Line para el Web Chat |
+| `OPENAI_API_URL`, `OPENAI_API_KEY` | Endpoint de Chat Completions del deployment de Azure OpenAI y su clave |
+| `SEARCH_ENDPOINT`, `SEARCH_KEY`, `SEARCH_INDEX_NAME` | Servicio e índice de Azure AI Search |
 
-    ```bash
-    npm install
-    ```
+> El `.env` del repositorio es solo una plantilla vacía: no subas tus claves.
 
-- Deploy your bot to Azure, see [Deploy your bot to Azure](https://aka.ms/azuredeployment)
+## Ejecutar en local
 
-- [Add Authentication to your bot via Azure Bot Service](https://docs.microsoft.com/en-us/azure/bot-service/bot-builder-authentication?view=azure-bot-service-4.0&tabs=csharp)
+Requiere Node.js 18 o superior.
 
-After Authentication has been configured via Azure Bot Service, you can test the bot.
+```bash
+git clone https://github.com/Jmurga16/azure-rag-chatbot.git
+cd azure-rag-chatbot
+npm install
+npm start
+```
 
-## Testing the bot using Bot Framework Emulator
+El bot queda en `http://localhost:3978`. Para probarlo:
 
-[Bot Framework Emulator](https://github.com/microsoft/botframework-emulator) is a desktop application that allows bot developers to test and debug their bots on localhost or running remotely through a tunnel.
+- **Bot Framework Emulator**: *Open Bot* → `http://localhost:3978/api/messages`.
+- **Web Chat**: abre `http://localhost:3978` (requiere `DIRECT_LINE_TOKEN`).
 
-- Install the latest Bot Framework Emulator from [here](https://github.com/Microsoft/BotFramework-Emulator/releases)
+## Despliegue en Azure
 
-### Connect to the bot using Bot Framework Emulator
+1. Crear el índice en Azure AI Search con los documentos (por ejemplo, desde Blob Storage).
+2. Crear el deployment del modelo en Azure OpenAI.
+3. Desplegar el App Service y el Azure Bot con las plantillas de `deploymentTemplates/` (las instrucciones están en el `readme.md` de cada carpeta).
+4. Configurar la conexión OAuth en el Azure Bot y las variables de entorno en el App Service.
 
-- Launch Bot Framework Emulator
-- File -> Open Bot
-- Enter a Bot URL of `http://localhost:3978/api/messages`
+## Créditos
 
-## Interacting with the bot
+La base de autenticación parte del ejemplo [18.bot-authentication](https://github.com/microsoft/BotBuilder-Samples) de Microsoft Bot Framework (licencia MIT). La integración RAG con Azure OpenAI y Azure AI Search, el manejo del historial, las referencias y el Web Chat son desarrollo propio.
 
-This sample uses bot authentication capabilities in Azure Bot Service, providing features to make it easier to develop a bot that authenticates users to various identity providers such as Azure AD (Azure Active Directory), GitHub, Uber, etc. These updates also take steps towards an improved user experience by eliminating the magic code verification for some clients.
+---
 
-## Deploy the bot to Azure
-
-To learn more about deploying a bot to Azure, see [Deploy your bot to Azure](https://aka.ms/azuredeployment) for a complete list of deployment instructions.
-
-## Further reading
-
-- [Bot Framework Documentation](https://docs.botframework.com)
-- [Bot Basics](https://docs.microsoft.com/azure/bot-service/bot-builder-basics?view=azure-bot-service-4.0)
-- [Azure Portal](https://portal.azure.com)
-- [Add Authentication to Your Bot Via Azure Bot Service](https://docs.microsoft.com/en-us/azure/bot-service/bot-builder-authentication?view=azure-bot-service-4.0&tabs=csharp)
-- [Activity processing](https://docs.microsoft.com/en-us/azure/bot-service/bot-builder-concept-activity-processing?view=azure-bot-service-4.0)
-- [Azure Bot Service Introduction](https://docs.microsoft.com/azure/bot-service/bot-service-overview-introduction?view=azure-bot-service-4.0)
-- [Azure Bot Service Documentation](https://docs.microsoft.com/azure/bot-service/?view=azure-bot-service-4.0)
-- [.NET Core CLI tools](https://docs.microsoft.com/en-us/dotnet/core/tools/?tabs=netcore2x)
-- [Azure CLI](https://docs.microsoft.com/cli/azure/?view=azure-cli-latest)
-- [Azure Portal](https://portal.azure.com)
-- [Language Understanding using LUIS](https://docs.microsoft.com/en-us/azure/cognitive-services/luis/)
-- [Channels and Bot Connector Service](https://docs.microsoft.com/en-us/azure/bot-service/bot-concepts?view=azure-bot-service-4.0)
-- [Restify](https://www.npmjs.com/package/restify)
-- [dotenv](https://www.npmjs.com/package/dotenv)
+Desarrollado por **José Murga** · [josemurga.dev](https://josemurga.dev)
