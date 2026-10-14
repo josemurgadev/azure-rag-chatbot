@@ -66,7 +66,7 @@ Variables de entorno (archivo `.env` en la raíz):
 Requiere Node.js 18 o superior.
 
 ```bash
-git clone https://github.com/Jmurga16/azure-rag-chatbot.git
+git clone https://github.com/josemurgadev/azure-rag-chatbot.git
 cd azure-rag-chatbot
 npm install
 npm start
