@@ -4,6 +4,8 @@ Chatbot corporativo que responde preguntas **en base a los documentos de la empr
 
 Usa el patrón **RAG** (Retrieval-Augmented Generation): en cada pregunta, Azure OpenAI consulta un índice de **Azure AI Search** con los documentos cargados y responde solo con esa información, citando las fuentes.
 
+![Web chat del bot: bienvenida y botón de inicio de sesión](docs/chatbot.png)
+
 ## Qué hace
 
 - **Inicio de sesión con OAuth** (Azure Bot Service): el usuario se autentica antes de poder preguntar, y escribe `salir` para cerrar sesión.
